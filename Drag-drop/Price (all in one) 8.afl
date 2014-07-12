@@ -1,0 +1,297 @@
+_SECTION_BEGIN("Name");
+//Ticker = ParamStr("Symbol", Name() );
+GfxSetOverlayMode(1);
+GfxSelectFont("Tahoma", Status("pxheight")/8 );
+GfxSetTextAlign( 6 );// center alignment
+GfxSetTextColor( ColorRGB( 200, 200, 200 ) );
+GfxSetBkMode(0); // transparent
+GfxTextOut( Name(), Status("pxwidth")/2, Status("pxheight")/12 );
+GfxSelectFont("Tahoma", Status("pxheight")/18 );
+GfxTextOut( IndustryID(1), Status("pxwidth")/2, Status("pxheight")/4 );
+GfxSelectFont("Tahoma", Status("pxheight")/18 );
+GfxSelectFont("Tahoma", Status("pxheight")/36 );
+GfxTextOut( "S M NUMAN", Status("pxwidth")/2, Status("pxheight")/3 );
+_SECTION_END();
+
+_SECTION_BEGIN("Price");
+SetChartOptions(0,chartShowArrows|chartShowDates);
+_N(Title = StrFormat("{{NAME}} - {{INTERVAL}} {{DATE}} Open %g, Hi %g, Lo %g, Close %g (%.1f%%) Vol " +WriteVal( V, 1.0 ) +" {{VALUES}}", O, H, L, C, SelectedValue( ROC( C, 1 )) ));
+Plot( C, "Close", ParamColor("Color", colorBlack ), styleNoTitle | ParamStyle("Style") | GetPriceStyle() ); 
+GfxSetOverlayMode(1);
+GfxSelectFont("Tahoma", Status("pxheight")/6 );
+GfxSetTextAlign( 3 );// center alignment
+GfxSetTextColor( ColorRGB( 200, 200, 200 ) );
+GfxSetBkMode(1); // transparent
+GfxTextOut( Name(), Status("pxwidth")/2, Status("pxheight")/12 );
+if( ParamToggle("Tooltip shows", "All Values|Only Prices" ) )
+{
+ ToolTip=StrFormat("Open: %g\nHigh:  %g\nLow:   %g\nClose:  %g (%.1f%%)\nVolume: "+NumToStr( V, 1 ), O, H, L, C, SelectedValue( ROC( C, 1 )));
+}
+_SECTION_END();
+
+_SECTION_BEGIN("MA");
+P = ParamField("Price field",-1);
+Periods = Param("Periods", 15, 2, 200, 1 );
+Plot( MA( P, Periods ), _DEFAULT_NAME(), ParamColor( "Color", colorCycle ), ParamStyle("Style") | styleNoRescale ); 
+_SECTION_END();
+
+_SECTION_BEGIN("Mid MA");
+P = ParamField("Price field",-1);
+Periods = Param("Periods", 45, 2, 300, 1 );
+Plot( MA( P, Periods ), _DEFAULT_NAME(), ParamColor( "Color", colorCycle ), ParamStyle("Style") | styleNoRescale ); 
+_SECTION_END();
+
+_SECTION_BEGIN("Long MA");
+P = ParamField("Price field",-1);
+Periods = Param("Periods", 100, 2, 400, 1 );
+Plot( MA( P, Periods ), _DEFAULT_NAME(), ParamColor( "Color", colorCycle ), ParamStyle("Style") | styleNoRescale ); 
+_SECTION_END();
+
+_SECTION_BEGIN("BBands-A");
+P = ParamField("Price field",-1);
+Periods = Param("Periods", 15, 2, 100, 1 );
+Width = Param("Width", 2, 0, 10, 0.05 );
+Color = ParamColor("Color", colorLightGrey );
+Style = ParamStyle("Style") | styleNoRescale;;
+Plot( bbt = BBandTop( P, Periods, Width ), "BBTop" + _PARAM_VALUES(), Color, Style ); 
+Plot( bbb = BBandBot( P, Periods, Width ), "BBBot" + _PARAM_VALUES(), Color, Style ); 
+PlotOHLC( bbt, bbt, bbb, bbb, "", ColorBlend( Color, colorWhite, 0.9 ), styleCloud | styleNoRescale, Null, Null, Null, -1 );
+_SECTION_END();
+
+_SECTION_BEGIN("BBands-B");
+P = ParamField("Price field",-1);
+Periods = Param("Periods", 10, 1.35, 100, 1 );
+Width = Param("Width", 1.35, 0, 10, 0.05 );
+Color = ParamColor("Color", colorViolet );
+Style = ParamStyle("Style") | styleNoRescale;;
+Plot( bbt = BBandTop( P, Periods, Width ), "BBTop" + _PARAM_VALUES(), Color, Style ); 
+Plot( bbb = BBandBot( P, Periods, Width ), "BBBot" + _PARAM_VALUES(), Color, Style ); 
+PlotOHLC( bbt, bbt, bbb, bbb, "", ColorBlend( Color, colorViolet, 0.29 ), styleCloud | styleNoRescale, Null, Null, Null, -1 );
+_SECTION_END();
+
+_SECTION_BEGIN("Volume");
+Plot( Volume, _DEFAULT_NAME(), ParamColor("Color", colorLavender ), styleNoTitle | ParamStyle( "Style", styleHistogram | styleOwnScale | styleThick | styleNoLabel, maskHistogram  ), 2 );
+_SECTION_END();
+
+_SECTION_BEGIN("Price Interpretation");
+movshort = ParamField("Short Time MA", 8 );
+movmed = ParamField("Mid Time MA", 9 );
+movlong = ParamField("Long Time MA", 10 );
+btop = ParamField("BBTop", 11 );
+bbot = ParamField("BBBottom", 12 );
+if( Status("action") == actionCommentary )
+{
+width = btop - bbot;
+lslop = LinRegSlope( C, 30 ) + 100;
+lslo = LLV( lslop, 90 );
+lshi = HHV( lslop, 90 );
+lswidth = lshi - lslo;
+trend = 100*( lslop - lslo )/lswidth;
+
+mawidth = MA( width, 100 );
+relwidth = 100*(width - mawidth)/mawidth;
+
+_N( tname = Name()+"("+FullName()+")" );
+
+printf("Price and moving averages:\n");
+printf( tname + " has closed " + WriteIf( C > movshort, "above" , "below" ) + " its Short time moving average. ");
+
+printf("\nShort time moving average is currently " + WriteIf( movshort > movmed, "above", "below") + " mid-time, AND " + WriteIf( movshort > movlong, "above", "below" ) + " long time moving averages.");
+
+printf("\nThe relationship between price and moving averages is: "+
+WriteIf( C > movshort AND movshort > movmed, "bullish",
+WriteIf( C < movshort AND movshort < movmed, "bearish", "neutral" ) ) + " in short-term, and "+
+WriteIf( movshort > movmed AND movmed > movlong , "bullish",
+WriteIf( movshort < movmed AND movmed < movlong, "bearish", "neutral" ) ) + " in mid-long term. ");
+
+printf("\n\nBollinger Bands:\n");
+printf(tname+ " has closed " + 
+WriteIf( C < bbot, "below the lower band by " +
+WriteVal( 100 *( bbot-C )/ width, 1.1 ) + "%%. " +
+WriteIf( trend < 30, " This combined with the steep downtrend can suggest that the downward trend in prices has a good chance of continuing.  However, a short-term pull-back inside the bands is likely.",
+WriteIf( trend > 30 AND trend < 70, "Although prices have broken the lower band and a downside breakout is possible, the most likely scenario for "+tname+" is to continue within current trading range.", "" ) ), "" ) +
+
+WriteIf( C > btop, "above the upper band by " +
+WriteVal( 100 *( C- btop )/ width, 1.1 ) + "%%. " +
+WriteIf( trend > 70, " This combined with the steep uptrend suggests that the upward trend in prices has a good chance of continuing.  However, a short-term pull-back inside the bands is likely.",
+WriteIf( trend > 30 AND trend < 70, "Although prices have broken the upper band and a upside breakout is possible, the most likely scenario for "+tname+" is to continue within current trading range.", "" ) ), "" ) +
+
+WriteIf( C < btop AND ( ( btop - C ) / width ) < 0.5, 
+"below upper band by " +
+WriteVal( 100 *( btop - C )/ width, 1.1 ) + "%%. ", 
+WriteIf( C < btop AND C > bbot , "above bottom band by " +
+WriteVal( 100 *( C - bbot )/ width, 1.1 ) + "%%. ", "" ) ));
+
+printf("\n"+
+WriteIf( ( trend > 30 AND trend < 70 AND ( C > btop OR C < bbot ) ) AND abs(relwidth) > 40,
+		 "This picture becomes somewhat unclear due to the fact that Bollinger Bands are  currently",
+		 "Bollinger Bands are " )+	  
+WriteVal( abs( relwidth ), 1.1 ) + "%% " +
+WriteIf( relwidth > 0, "wider" , "narrower" ) +
+" than normal.");
+
+printf("\n");
+
+printf(
+WriteIf( abs( relwidth ) < 40, "The current width of the bands (alone) does not suggest anything conclusive about the future volatility or movement of prices.","")+
+WriteIf( relwidth < -40, "The narrow width of the bands suggests low volatility as compared to " + tname + "'s normal range.  Therefore, the probability of volatility increasing with a sharp price move has increased for the near-term. "+
+"The bands have been in this narrow range for " + WriteVal(BarsSince(Cross(-40,relwidth)),1.0) + " bars. The probability of a significant price move increases the longer the bands remain in this narrow range." ,"")+
+WriteIf( relwidth > 40, "The large width of the bands suggest high volatility as compared to " + tname + "'s normal range.  Therefore, the probability of volatility decreasing and prices entering (or remaining in) a trading range has increased for the near-term. "+
+"The bands have been in this wide range for  " + WriteVal(BarsSince(Cross(relwidth,40)),1.0) + " bars.The probability of prices consolidating into a less volatile trading range increases the longer the bands remain in this wide range." ,""));
+
+printf("\n\nThis commentary is not a recommendation to buy or sell. Use at your own risk.");
+}
+_SECTION_END();
+
+/* Fibonacci Internal & External Retracements */
+// This is a Modified Version that shows Fibonacci 00% & 100% instead of WRONG Sup & Res
+ 
+_SECTION_BEGIN("Background");
+    SetChartOptions(0,chartShowArrows|chartShowDates);
+    SetChartBkColor(ParamColor("Outer panel",colorBlack)); // color of outer border 
+    SetChartBkGradientFill( ParamColor("Inner panel upper",colorBlack),ParamColor("Inner panel lower",colorBlack));
+    tchoice=Param("Title Selection ",2,1,2,1);
+ 
+Plot(C, "", IIf(O>=C, colorRed, colorGreen), ParamStyle("Price Style",styleBar,maskPrice));
+//////////////////////////////////////////////////////////////////
+_SECTION_BEGIN("Fib Retracements");
+    fibs = ParamToggle("Plot Fibs","Off|On",1);
+    pctH = Param ("Pivot Hi %", 0.325,0.001,2.0,0.002);
+    HiLB = Param ("Hi LookBack",1,1,BarCount-1,1);
+    pctL = Param ("Pivot Lo %", 0.325,0.001,2.0,0.002);
+    LoLB = Param ("Lo LookBack",1,1,BarCount-1,1);
+    Back = Param ("Extend Left = 2",1,1,500,1);
+    Fwd  = Param("Plot Forward", 0, 0, 500, 1);
+    text = ParamToggle("Plot Text","Off|On",1);
+    hts  = Param ("Text Shift", -33.5,-50,50,0.10);
+    style =ParamStyle("Line Style",styleLine,styleNoLabel);
+x = BarIndex();
+pRp  = PeakBars( H, pctH, 1) == 0;
+yRp0 = SelectedValue(ValueWhen( pRp, H, HiLB));
+xRp0 = SelectedValue(ValueWhen( pRp, x, HiLB));
+pSp  = TroughBars( L, pctL, 1) == 0;
+ySp0 = SelectedValue(ValueWhen( pSp, L, LoLB));
+xSp0 = SelectedValue(ValueWhen( pSp, x, LoLB));
+Delta = yRp0 - ySp0;
+ 
+function fib(ret)
+{
+retval = (Delta * ret);
+Fibval = IIf(ret < 1.0 
+AND xSp0 < xRp0, yRp0 - retval, IIf(ret < 1.0 
+AND xSp0 > xRp0, ySp0 + retval,IIf(ret > 1.0 
+AND xSp0 < xRp0, yRp0 - retval, IIf(ret > 1.0 
+AND xSp0 > xRp0, ySp0 + retval, Null)))); 
+return FibVal;
+}
+ 
+x0 = Min(xSp0,xRp0)-Back;
+x1 = (BarCount -1);
+//////////////////////////////////////////////////////////////////
+r236 = fib(0.236);  r236I = LastValue (r236,1);
+r382 = fib(0.382);  r382I = LastValue (r382,1);
+r050 = fib(0.50);       r050I = LastValue (r050,1);
+r618 = fib(0.618);  r618I = LastValue (r618,1);
+r786 = fib(0.786);  r786I = LastValue (r786,1);
+e127 = fib(1.27);       e127I = LastValue (e127,1);
+e162 = fib(1.62);       e162I = LastValue (e162,1);
+e200 = fib(2.00);       e200I = LastValue (e200,1);
+e262 = fib(2.62);       e262I = LastValue (e262,1);
+e424 = fib(4.24);       e424I = LastValue (e424,1);
+//////////////////////////////////////////////////////////////////
+p00 = IIf(xSp0 > xRp0,ySp0,yRp0);    p00I = LastValue (p00,1);
+p100 = IIf(xSp0 < xRp0,ySp0,yRp0);   p100I = LastValue (p100,1);
+color00 =IIf(xSp0 > xRp0,colorLime,colorRed);
+color100 =IIf(xSp0 < xRp0,colorLime,colorRed);
+//////////////////////////////////////////////////////////////////
+numbars = LastValue(Cum(Status("barvisible")));
+fraction= IIf(StrRight(Name(),3) == "", 3.2, 3.2);
+//////////////////////////////////////////////////////////////////
+if(fibs==1)
+{
+Plot(LineArray(xRp0-Fwd,yRp0,x1,yRp0,Back),"PR",32,8|styleNoRescale,Null,
+Null,Fwd);
+Plot(LineArray(xSp0-Fwd,ySp0,x1,ySp0,Back),"PS",27,8|styleNoRescale,Null,
+Null,Fwd);
+Plot(LineArray(x0-Fwd,r236,x1,r236,Back),"",45,style|styleNoRescale,Null,
+Null,Fwd);
+Plot(LineArray(x0-Fwd,r382,x1,r382,Back),"",44,style|styleNoRescale,Null,
+Null,Fwd);
+Plot(LineArray(x0-Fwd,r050,x1,r050,Back),"",41,style|styleNoRescale,Null,
+Null,Fwd);
+Plot(LineArray(x0-Fwd,r618,x1,r618,Back),"",43,style|styleNoRescale,Null,
+Null,Fwd);
+Plot(LineArray(x0-Fwd,r786,x1,r786,Back),"",42,style|styleNoRescale,Null,
+Null,Fwd);
+Plot(LineArray(x0-Fwd,e127,x1,e127,Back),"e127",47,style|styleNoRescale,Null,
+Null,Fwd);
+Plot(LineArray(x0-Fwd,e162,x1,e162,Back),"e162",47,style|styleNoRescale,Null,
+Null,Fwd);
+Plot(LineArray(x0-Fwd,e200,x1,e200,Back),"p200",47,style|styleNoRescale,Null,
+Null,Fwd);
+Plot(LineArray(x0-Fwd,e262,x1,e262,Back),"p262",47,style|styleNoRescale,Null,
+Null,Fwd);
+Plot(LineArray(x0-Fwd,e424,x1,e424,Back),"p424",25,style|styleNoRescale,Null,
+Null,Fwd);
+}
+//////////////////////////////////////////////////////////////////
+if(text==1)
+{ 
+PlotText(" 0% = " + WriteVal(p00,fraction),
+    LastValue(BarIndex())-(numbars/hts), p00I  + 0.05, color00);
+PlotText("23% = " + WriteVal(r236,fraction),
+LastValue(BarIndex())-(numbars/hts), r236I + 0.05, 45);
+PlotText("38% = " + WriteVal(r382,fraction),
+LastValue(BarIndex())-(numbars/hts), r382I + 0.05, 44);
+PlotText("50% = " + WriteVal(r050,fraction),
+LastValue(BarIndex())-(numbars/hts), r050I + 0.05, 41);
+PlotText("62% = " + WriteVal(r618,fraction),
+LastValue(BarIndex())-(numbars/hts), r618I + 0.05, 43);
+PlotText("78% = " + WriteVal(r786,fraction),
+LastValue(BarIndex())-(numbars/hts), r786I + 0.05, 42);
+PlotText("100% = " + WriteVal(p100,fraction),
+LastValue(BarIndex())-(numbars/hts),p100I + 0.05, color100);
+PlotText("127% = " + WriteVal(e127,fraction),
+LastValue(BarIndex())-(numbars/hts),e127I + 0.05, 47);
+PlotText("162% = " + WriteVal(e162,fraction),
+LastValue(BarIndex())-(numbars/hts),e162I + 0.05, 47);
+PlotText("200% = " + WriteVal(e200,fraction),
+LastValue(BarIndex())-(numbars/hts),e200I + 0.05, 47);
+PlotText("262% = " + WriteVal(e262,fraction),
+LastValue(BarIndex())-(numbars/hts),e262I + 0.05, 47);
+PlotText("424% = " + WriteVal(e424,fraction),
+LastValue(BarIndex())-(numbars/hts),e424I + 0.05, 25);
+}
+_SECTION_END();
+//////////////////////////////////////////////////////////////////
+if (tchoice==1 ) 
+{
+_N(Title = EncodeColor(colorWhite)+StrFormat(" {{NAME}} -   {{INTERVAL}}     
+{{Date}}    Open:  %g,    High:  %g,     Low:  %g,     Close:  %g    
+{{VALUES}}",O, H, L, C, SelectedValue( ROC( C, 1   ) ) ));
+}
+//////////////////////////////////////////////////////////////////
+if (tchoice==2 ) 
+{
+Title = EncodeColor(colorYellow) + "Fibonacci Internal & External Retracements  " +  EncodeColor(colorWhite) + Name() + "  " + EncodeColor(colorWhite)+  Date() + "   Tick = " + EncodeColor(5) +
+Interval()+
+EncodeColor(colorWhite) + "     Open = " + EncodeColor(colorWhite) + O + 
+EncodeColor(colorWhite) + "     High = " + EncodeColor(5) + H +
+EncodeColor(colorWhite) + "      Low = " + EncodeColor(colorRed) + L + 
+EncodeColor(colorWhite) + "     Close = " + EncodeColor(colorWhite) + C + "\n"
++
+EncodeColor( colorWhite) +"_______________"+"\n"+
+EncodeColor( colorWhite)  + "424%   =  "    +   EncodeColor(25)+ e424 + " " +"\n"+
+EncodeColor( colorWhite)  + "262%   =  "    +   EncodeColor(47)+ e262 + " " +"\n"+
+EncodeColor( colorWhite)  + "200%   =  "    +   EncodeColor(47)+ e200 + " " +"\n"+
+EncodeColor( colorWhite)  + "162%   =  "    +   EncodeColor(47)+ e162 + " " +"\n"+
+EncodeColor( colorWhite)  + "127%   =  "    +   EncodeColor(47)+ e127 + " " +"\n"+
+EncodeColor( Color100)  + "100%   =  "  + EncodeColor(Color100) + p100 + " "+"\n"+
+EncodeColor( colorWhite)  + "78.6%  =  "    +   EncodeColor(42)+ r786 + " " +"\n"+
+EncodeColor( colorWhite)  + "61.8%  =  "    +   EncodeColor(43)+ r618 + " "+"\n"+
+EncodeColor( colorWhite)  + "50%     =  "   +   EncodeColor(41)+ r050 + " "+"\n"+
+EncodeColor( colorWhite)  + "38.2%  =  "    +   EncodeColor(44)+ r382 + " "+"\n"+
+EncodeColor( colorWhite)  + "23.6%  =  "    +   EncodeColor(45)+ r236+ " " +"\n"+
+EncodeColor( Color00)  + "00%    =  " +     EncodeColor(Color00) + p00 + " " ;
+}
+GraphXSpace=5;
